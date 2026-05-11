@@ -1,0 +1,121 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    overflow: hidden;
+}
+
+.container {
+    display: grid;
+    height: 100vh;
+    grid-template-columns: 250px 1fr;
+}
+
+.sidebar {
+    width: 100%;
+    padding: 20px;
+    overflow-y: auto;
+
+    background-color: #1A1953;
+    color: white;
+}
+
+.timeLabel {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.timeScale {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+}
+
+.heading {
+    font-size: 1.25rem;
+    margin: 0;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    
+    font-family: 'Orbitron', sans-serif;
+}
+
+.bodies {
+    width: 100%;
+}
+
+.bodies h2 {
+    font-size: 1rem;
+    margin: 0;
+    font-weight: bold;
+
+    font-family: 'Orbitron', monospace;
+    padding: 0.5rem 0;
+}
+
+.bodies .body-list {
+    list-style: none;
+    width: 100%;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.875rem;
+}
+
+.bodies .body-list li {
+    margin-bottom: 0.25rem;
+    border-radius: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+
+    padding: 0.25rem 0.5rem;
+}
+
+.bodies .body-list li:hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    cursor: pointer;
+}
+
+.controls {
+    width: 100%;
+    margin-top: 1rem;
+    
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.controls button {
+    padding: 0.5rem;
+    border: none;
+    border-radius: 0.25rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgb(255, 255, 255);
+    font-weight: bold;
+    font-family: 'Orbitron', monospace;
+}
+
+.controls button:hover {
+    background-color: rgba(255, 255, 255, 0.9) !important;
+    color: rgb(0, 0, 110);
+    cursor: pointer;
+}
+
+.time {
+    position: absolute;
+    top: 1rem;
+    right: 0;
+    transform: translateX(-50%);
+    font-family: 'Space Mono', monospace;
+    z-index: 10;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+canvas {
+    width: 100%;
+    height: 100%;    
+}
