@@ -3,7 +3,7 @@ function updateBodiesList(bodies) {
     bodiesList.innerHTML = "";
     bodies.map(body => {
         const li = document.createElement("li");
-        li.innerHTML = `<span style="color: ${body.color};">${body.name}</span>`;
+        li.innerHTML = `<span style="color: ${body.color};" class="body-display">${body.name}</span>`;
         bodiesList.appendChild(li);
     });
 }

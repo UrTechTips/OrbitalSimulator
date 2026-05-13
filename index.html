@@ -12,7 +12,7 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <h1 class="heading">Orbital Simulation</h1>
+            <h1 class="sim-title">Orbital Simulation</h1>
             <p id="debug">A <s>simple</s> orbital simulation using JavaScript and Canvas.</p>
             
             <div class="controls" id="controls">
@@ -21,6 +21,16 @@
                 <!-- Slider for time speed -->
                 <label class="timeLabel" for="time-scale">Time Speed:</label>
                 <input type="range" class="timeScale" id="time-scale" min="0.5" max="2.5" step="0.1" value="1">
+
+                <button id="add-body-btn">Add Body</button>
+            </div>
+
+            <div class="selectedBody" id="selected-body">
+                <h2>Selected Body</h2>
+                <div class="selected-body-info" id="selected-body-info">
+                    <p>Click on a body to see details.</p>
+                    <!-- This will be populated as follows <div class="property"><h4>Property:</h4><p>Value</p></div> -->
+                </div>
             </div>
 
             <div class="bodies">
@@ -32,6 +42,7 @@
         </div>
         <canvas id="canvas"></canvas>
         <h3 class="time" id="time">Year: 0</h3>
+        <h3 class="energy" id="system-energy">System Energy: 0</h3>
     </div>
     <script type="module" src="./scripts/main.js"></script>
 </body>

@@ -1,11 +1,12 @@
 //main.js
-
 import Body from "./physics/bodies.js";
 import Camera from "./renderer/camera.js";
 import { update, updateRK4 } from "./physics/rk4.js";
 import cameraEventListeners from "./renderer/camera_canvas.js";
 import { updateBodiesList } from "./ui/bodiesList.js";
 import { SIM_UNITS, MAX_TRAIL_LENGTH } from "./constants.js";
+import { drawBody, drawSemiMajorAxisDisplay, drawVelocityArrow, drawHoverInfo, drawSOI, drawGrid } from "./renderer/draw.js";
+import { setSelectedBodyInfo } from "./ui/utils.js";
 
 const camera = new Camera(0, 0);
 const canvas = document.getElementById("canvas");
@@ -26,6 +27,33 @@ const pauseButton = document.getElementById("pause-btn");
 const resetButton = document.getElementById("reset-btn");
 const yearDisplay = document.getElementById("time");
 const timeScaleInput = document.getElementById("time-scale");
+const systemEnergyDisplay = document.getElementById("system-energy");
+
+const addBodyButton = document.getElementById("add-body-btn");
+
+let years = 0;
+
+const s = new Body("Sun", 1, 0.00465046726, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "star", "yellow");
+const b = new Body("Earth", 3.00274e-6, 4.26349651e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "blue", s).initPlanet(1, 0.0167);
+const m = new Body("Mercury", 1.66012e-7, 1.659e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "gray", s).initPlanet(0.387, 0.2056);
+const v = new Body("Venus", 2.4478383e-6, 1.079e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "orange", s).initPlanet(0.723, 0.0067);
+const mar = new Body("Mars", 3.213e-7, 2.263e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "red", s).initPlanet(1.524, 0.0934);
+const j = new Body("Jupiter", 0.000954588, 0.0004778945, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "brown", s).initPlanet(5.29, 0.0489);
+const sat = new Body("Saturn", 0.00028572, 0.000402, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "goldenrod", s).initPlanet(9.537, 0.0541); 
+const u = new Body("Uranus", 0.00004365, 0.000084, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "lightblue", s).initPlanet(19.2184, 0.0463);
+const nep = new Body("Neptune", 0.00005149, 0.000079, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "blue", s).initPlanet(30.11, 0.0097);
+
+let bodies = [s, b, m, v, mar, j, sat, u, nep];
+updateBodiesList(bodies);
+
+let isAddingBody = false;
+addBodyButton.addEventListener("click", () => {
+    isAddingBody = !isAddingBody;
+    addBodyButton.textContent = isAddingBody ? "Cancel Adding Body" : "Add Body";
+    if (!isAddingBody) {
+        newBody = null;
+    }
+});
 
 timeScaleInput.addEventListener("input", () => {
     const scale = parseFloat(timeScaleInput.value);
@@ -48,6 +76,8 @@ resetButton.addEventListener("click", () => {
 
 let isDragging = false;
 let newBody = null;
+let selectedBody = null;
+let hoveredBody = null;
 
 function getCanvasMousePos(event, canvas) {
     const rect = canvas.getBoundingClientRect();
@@ -63,11 +93,12 @@ function getCanvasMousePos(event, canvas) {
 
 canvas.addEventListener("mousedown", (event) => {
     if (event.button !== 0) return; 
+    if (!isAddingBody) return;
     isDragging = true;
     const [mouseX, mouseY] = getCanvasMousePos(event, canvas);
     const [worldX, worldY] = camera.screenToWorld(mouseX, mouseY, canvas);
-    newBody = new Body("New Body", 1e-6, 1e-5, 0, 0,
-        {x: worldX, y: worldY}, {x:0, y:0}, {x:0, y:0}, "asteroid", "white");
+    newBody = new Body("New Body", 1e-6, 1e-5,
+        {x: worldX, y: worldY}, {x:0, y:0}, {x:0, y:0}, "asteroid", "white", s);
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -83,12 +114,12 @@ canvas.addEventListener("mousemove", (event) => {
         // Also clamp max speed so nothing launches at 500 AU/year
         const MAX_SPEED = 15;  // AU/year — above this nothing stays in the system
         const speed = Math.sqrt(newBody.vel.x**2 + newBody.vel.y**2);
+        newBody.vel.x = dx * VEL_SCALE;
+        newBody.vel.y = dy * VEL_SCALE;
         if (speed > MAX_SPEED) {
             newBody.vel.x = (newBody.vel.x / speed) * MAX_SPEED;
             newBody.vel.y = (newBody.vel.y / speed) * MAX_SPEED;
         }
-        newBody.vel.x = dx * VEL_SCALE;
-        newBody.vel.y = dy * VEL_SCALE;
     }
 });
 
@@ -101,6 +132,23 @@ canvas.addEventListener("mouseup", (event) => {
     }
 });
 
+canvas.addEventListener("mousemove", (e) => {
+    if (isDragging || isAddingBody) return;
+    e.preventDefault();
+
+    const [mouseX, mouseY] = getCanvasMousePos(e, canvas);
+    const [worldX, worldY] = camera.screenToWorld(mouseX, mouseY, canvas);
+    const hovered = selectBodyAtPosition(bodies, worldX, worldY);
+
+    if (hovered) {
+        canvas.style.cursor = "pointer";
+        hoveredBody = hovered;
+    } else {
+        canvas.style.cursor = isAddingBody ? "crosshair" : "default";
+        hoveredBody = null;
+    }
+})
+
 document.addEventListener("keydown", (e) => {
     if (e.key === 'Escape' && isDragging) {
         isDragging = false;
@@ -108,26 +156,27 @@ document.addEventListener("keydown", (e) => {
     }
 })
 
-let years = 0;
+// const bodyDisplays = document.getElementsByClassName("body-display");
+// (Array.from(bodyDisplays)).map((display, index) => {
+//     display.addEventListener("click", () => {
+//         setSelectedBody(index);
+//     });
+// });
 
-const s = new Body("Sun", 1, 0.00465046726, 0, 0, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "star", "yellow");
-const b = new Body("Earth", 3.00274e-6, 4.26349651e-5, 1, 0.0167, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "blue", s);
-const m = new Body("Mercury", 1.66012e-7, 1.659e-5, 0.387, 0.2056, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "gray", s);
-const v = new Body("Venus", 2.4478383e-6, 1.079e-5, 0.723, 0.0067, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "orange", s);
-const mar = new Body("Mars", 3.213e-7, 2.263e-5, 1.524, 0.0934, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "red", s);
-const j = new Body("Jupiter", 0.000954588, 0.0004778945, 5.2044, 0.0489, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "brown", s);
+// function setSelectedBody(index) {
+//     selectedBody = bodies[index];
+//     setSelectedBodyInfo(selectedBody);
+// }
 
-let bodies = [s, b, m, v, mar, j];
-updateBodiesList(bodies);
-
-function semiMajorAxisFromState(pos, vel, primaryMass) {
-    const r = Math.sqrt(pos.x**2 + pos.y**2);
-    const v2 = vel.x**2 + vel.y**2;
-
-    const inverseA = (2 / r) - (v2 / (SIM_UNITS.G * primaryMass));
-    if (inverseA <= 0) return Infinity; // Parabolic trajectory
-    return 1 / inverseA;
-}
+canvas.addEventListener("click", (e) => {
+    const [mouseX, mouseY] = getCanvasMousePos(e, canvas);
+    const [worldX, worldY] = camera.screenToWorld(mouseX, mouseY, canvas);
+    const selected = selectBodyAtPosition(bodies, worldX, worldY);
+    if (selected) {
+        selectedBody = selected;
+        setSelectedBodyInfo(selected);
+    }
+})
 
 function getVisualRadius(body, camera) {
   const realPixels = body.radius * camera.scale;
@@ -142,110 +191,49 @@ function getVisualRadius(body, camera) {
   return Math.max(realPixels, minimums[body.type]);
 }
 
-function drawBody(ctx, body, camera, canvas) {
-    const [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
-    const r = getVisualRadius(body, camera);
+function calculateSystemEnergy(bodies) {
+    let kinetic = 0;
+    let potential = 0;
+    const G = SIM_UNITS.G;
 
-    ctx.beginPath();
-    ctx.arc(sx, sy, r, 0, 2 * Math.PI);
-    if (body.type === "star") {
-        ctx.shadowColor = body.color;
-        ctx.shadowBlur = 10;
-    } else {
-        ctx.shadowColor = body.color;
-        ctx.shadowBlur = 5;
-    }
-    ctx.strokeStyle = body.color;
-    ctx.fillStyle = body.color;
-    ctx.fillText(body.name, sx + r + 2, sy - r - 2);
-    ctx.fill();
-    ctx.stroke();
+    for (let i = 0; i < bodies.length; i++) {
+        const bi = bodies[i];
+        // Kinetic: 1/2 * m * v^2
+        const vSq = bi.vel.x**2 + bi.vel.y**2;
+        kinetic += 0.5 * bi.mass * vSq;
 
-    ctx.shadowBlur = 0;
-
-    if (body.type != "asteroid" && body.type != "planet") return;
-    ctx.beginPath();
-    ctx.strokeStyle = body.color;
-    ctx.lineWidth = 2;
-    if (body.trail.length > 0) {
-        const [sx, sy] = camera.worldToScreen(body.trail[0].x, body.trail[0].y, canvas);
-        ctx.moveTo(sx, sy);
-
-        for (let j = 1; j < body.trail.length; j++) {
-            const [x, y] = camera.worldToScreen(body.trail[j].x, body.trail[j].y, canvas);
-            ctx.lineTo(x, y); 
+        for (let j = i + 1; j < bodies.length; j++) {
+            const bj = bodies[j];
+            // Potential: -G * m1 * m2 / r
+            const dx = bj.pos.x - bi.pos.x;
+            const dy = bj.pos.y - bi.pos.y;
+            const r = Math.sqrt(dx*dx + dy*dy);
+            potential -= (G * bi.mass * bj.mass) / r;
         }
-
     }
-    ctx.stroke();
-    ctx.closePath();
-};
-
-function soi(body, primary) {
-    return body.semiMajorAxis * Math.pow(body.mass / primary.mass, 2/5);
+    return kinetic + potential;
 }
 
-function drawSOI(ctx, body, primary, camera, canvas) {
-    const realSOI_AU  = soi(body, primary);
-    const realSOI_px  = realSOI_AU * camera.scale;
-    const visualSOI_px = Math.max(realSOI_px, getVisualRadius(body, camera) + 8);
-
-    const [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
-    ctx.beginPath();
-    ctx.arc(sx, sy, visualSOI_px, 0, 2 * Math.PI);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-    ctx.setLineDash([4, 4]);
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.closePath();
-}
-
-function drawVelocityArrow(ctx, body, camera, canvas) {
-    const [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
-    
-    // Convert velocity endpoint to screen space
-    const tipWorld = { x: body.pos.x + body.vel.x / 3, y: body.pos.y + body.vel.y / 3 };
-    const [tx, ty] = camera.worldToScreen(tipWorld.x, tipWorld.y, canvas);
-
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(tx, ty);
-    ctx.strokeStyle = "rgba(255, 255, 100, 0.8)";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Arrowhead
-    const angle = Math.atan2(ty - sy, tx - sx);
-    const headLen = 8;
-    ctx.beginPath();
-    ctx.moveTo(tx, ty);
-    ctx.lineTo(tx - headLen * Math.cos(angle - 0.4), ty - headLen * Math.sin(angle - 0.4));
-    ctx.lineTo(tx - headLen * Math.cos(angle + 0.4), ty - headLen * Math.sin(angle + 0.4));
-    ctx.closePath();
-    ctx.fillStyle = "rgba(255, 255, 100, 0.8)";
-    ctx.fill();
-}
-
-function drawSemiMajorAxisDisplay(ctx, body, camera, canvas) {
-    let [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
-    let smAxis = semiMajorAxisFromState(body.pos, body.vel, bodies[0].mass);
-    ctx.fillStyle = "white";
-    ctx.font = "11px monospace";
-    if (isFinite(smAxis)) {
-        ctx.fillText(`Semi-major Axis: ${smAxis.toFixed(2)} AU`, sx, sy + 10 + getVisualRadius(body, camera));
-    } else {
-        ctx.fillText(`Semi-major Axis: Escaping Orbit`, sx, sy + 10 + getVisualRadius(body, camera));
+function selectBodyAtPosition(bodies, x, y) {
+    for (let body of bodies) {
+        const dx = body.pos.x - x;
+        const dy = body.pos.y - y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        const radius = getVisualRadius(body, camera) / camera.scale;
+        if (dist < radius + 0.1) {
+            return body;
+        }
     }
+    return null;
 }
 
-const bodiesList = document.getElementById("body-list");
 function simulate() { 
     if (!paused) {
         requestAnimationFrame(simulate);
     }
     ctx.fillStyle = "#080616";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawGrid(ctx, canvas, camera);
 
     years += dt;
     yearDisplay.textContent = `Time: ${years.toFixed(2)}yrs`;
@@ -253,9 +241,12 @@ function simulate() {
     let changes = [];
     let removals = [];
 
+    const systemEnergy = calculateSystemEnergy(bodies);
+    systemEnergyDisplay.textContent = `System Energy: ${systemEnergy.toFixed(2)}`;
+
     if (newBody) {
         drawBody(ctx, newBody, camera, canvas);
-        drawSemiMajorAxisDisplay(ctx, newBody, camera, canvas);
+        drawSemiMajorAxisDisplay(ctx, newBody, camera, canvas, bodies);
         drawVelocityArrow(ctx, newBody, camera, canvas);
     }
 
@@ -263,8 +254,8 @@ function simulate() {
         if (body.type === "star") continue; 
         body.prevPos = { ...body.pos };
         // update(body, bodies, dt);
-        // updateRK4(body, bodies, dt);
-        let [pos, vel] = body.updateRK4(bodies, dt);
+        let [pos, vel] = updateRK4(body, bodies, dt);
+        // let [pos, vel] = body.updateRK4(bodies, dt);
         changes.push({body, pos, vel});
     }
 
@@ -295,6 +286,10 @@ function simulate() {
         if (body.type === "star") continue;
 
         if (body.primary != null) drawSOI(ctx, body, body.primary, camera, canvas);
+    }
+
+    if (hoveredBody) {
+        drawHoverInfo(ctx, hoveredBody, camera, canvas);
     }
 }
 

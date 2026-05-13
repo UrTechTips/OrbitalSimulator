@@ -1,0 +1,66 @@
+[
+  {
+    "Name": "Mercury",
+    "Mass_in_Solar_Masses": 1.66e-7,
+    "Radius_in_AU": 1.63e-5,
+    "SemiMajorAxis_in_AU": 0.387,
+    "Eccentricity": 0.2056,
+    "Color": "Gray"
+  },
+  {
+    "Name": "Venus",
+    "Mass_in_Solar_Masses": 2.45e-6,
+    "Radius_in_AU": 4.04e-5,
+    "SemiMajorAxis_in_AU": 0.723,
+    "Eccentricity": 0.0067,
+    "Color": "Pale Yellow"
+  },
+  {
+    "Name": "Earth",
+    "Mass_in_Solar_Masses": 3.00e-6,
+    "Radius_in_AU": 4.26e-5,
+    "SemiMajorAxis_in_AU": 1.000,
+    "Eccentricity": 0.0167,
+    "Color": "Blue, White, and Green"
+  },
+  {
+    "Name": "Mars",
+    "Mass_in_Solar_Masses": 3.22e-7,
+    "Radius_in_AU": 2.27e-5,
+    "SemiMajorAxis_in_AU": 1.524,
+    "Eccentricity": 0.0934,
+    "Color": "Reddish-Orange"
+  },
+  {
+    "Name": "Jupiter",
+    "Mass_in_Solar_Masses": 9.54e-4,
+    "Radius_in_AU": 4.67e-4,
+    "SemiMajorAxis_in_AU": 5.203,
+    "Eccentricity": 0.0484,
+    "Color": "Brown, Orange, and White bands"
+  },
+  {
+    "Name": "Saturn",
+    "Mass_in_Solar_Masses": 2.85e-4,
+    "Radius_in_AU": 3.89e-4,
+    "SemiMajorAxis_in_AU": 9.537,
+    "Eccentricity": 0.0541,
+    "Color": "Pale Gold"
+  },
+  {
+    "Name": "Uranus",
+    "Mass_in_Solar_Masses": 4.36e-5,
+    "Radius_in_AU": 1.69e-4,
+    "SemiMajorAxis_in_AU": 19.191,
+    "Eccentricity": 0.0472,
+    "Color": "Pale Blue"
+  },
+  {
+    "Name": "Neptune",
+    "Mass_in_Solar_Masses": 5.15e-5,
+    "Radius_in_AU": 1.64e-4,
+    "SemiMajorAxis_in_AU": 30.069,
+    "Eccentricity": 0.0086,
+    "Color": "Bright Blue"
+  }
+]

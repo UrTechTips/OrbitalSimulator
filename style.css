@@ -11,7 +11,7 @@ body {
 .container {
     display: grid;
     height: 100vh;
-    grid-template-columns: 250px 1fr;
+    grid-template-columns: 300px 1fr;
 }
 
 .sidebar {
@@ -100,7 +100,7 @@ body {
 }
 
 .controls button:hover {
-    background-color: rgba(255, 255, 255, 0.9) !important;
+    background-color: rgba(255, 255, 255, 0.9);
     color: rgb(0, 0, 110);
     cursor: pointer;
 }
@@ -108,14 +108,58 @@ body {
 .time {
     position: absolute;
     top: 1rem;
-    right: 0;
-    transform: translateX(-50%);
+    right: 2rem;
     font-family: 'Space Mono', monospace;
+    font-size: 0.875rem;
     z-index: 10;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.5);
+}
+.energy {
+    position: absolute;
+    top: 2.25rem;
+    right: 2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.875rem;
+    z-index: 10;
+    color: rgba(255, 255, 255, 0.5);
+    width: max-content;
 }
 
 canvas {
     width: 100%;
     height: 100%;    
+}
+
+.selectedBody {
+    width: 100%;
+    margin-block: 1rem;
+    padding: 0.5rem;
+}
+.selectedBody h2 {
+    font-size: 1rem;
+    margin: 0;
+    font-weight: bold;
+
+    font-family: 'Orbitron', monospace;
+}
+
+.selected-body-info {
+    margin:0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+
+    font-family: 'Space Mono', monospace;
+    font-size: 0.8rem;
+    flex-shrink: 2;
+}
+
+.selectedBody .property {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
 }

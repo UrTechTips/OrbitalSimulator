@@ -1,13 +1,11 @@
 import { SIM_UNITS } from "../constants.js";
 class Body {
-    constructor(name, mass, radius, semiMajorAxis, ecentricity, position, velocity, acceleration, type, color, primary = null) {
+    constructor(name, mass, radius, position, velocity, acceleration, type, color, primary = null) {
         this.id = Math.random().toString(36).substr(2, 9);
 
         this.name = name;
         this.mass = mass;
         this.radius = radius;
-        this.semiMajorAxis = semiMajorAxis;
-        this.eccentricity = ecentricity;
         this.pos = position;
         this.prevPos = { ...position };
         this.vel = velocity;
@@ -16,14 +14,21 @@ class Body {
         this.primary = primary;
         this.type = type; // Planet, Star, Probe, Asteroid, etc.
 
-        if (this.type === "planet"){ 
-            const r_p = this.semiMajorAxis * (1 - this.eccentricity);
-            const v_p = Math.sqrt((SIM_UNITS.G * this.primary.mass * (1 + this.eccentricity)) / (this.semiMajorAxis * (1 - this.eccentricity)));
-            this.pos = { x: r_p, y: 0 };
-            this.vel = { x: 0, y: v_p };
+        if (primary) {
+            this.mu = SIM_UNITS.G * primary.mass;
         }
 
         this.trail = [];
+    }
+
+    initPlanet(semiMajorAxis, eccentricity) {
+        if (this.type !== "planet" || !this.primary) return;
+        const r_p = semiMajorAxis * (1 - eccentricity);
+        const v_p = Math.sqrt((SIM_UNITS.G * this.primary.mass * (1 + eccentricity)) / (semiMajorAxis * (1 - eccentricity)));
+        this.pos = { x: r_p, y: 0 };
+        this.vel = { x: 0, y: v_p };
+
+        return this;
     }
 
     computeAccelration(bodies, pos) {
