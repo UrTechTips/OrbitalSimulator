@@ -1,4 +1,5 @@
-import { semiMajorAxisFromState } from "../physics/orbitalElements.js"
+import { semiMajorAxisFromState, semiLatusRectum, eccentricityVector } from "../physics/orbitalElements.js"
+import { Vector } from "../physics/vector.js";
 
 function getVisualRadius(body, camera) {
   const realPixels = body.radius * camera.scale;
@@ -109,6 +110,13 @@ function drawSemiMajorAxisDisplay(ctx, body, camera, canvas, bodies) {
         ctx.fillText(`Semi-major Axis: Escaping Orbit`, sx, sy + 10 + getVisualRadius(body, camera));
     }
 }
+function drawVelocityDisplay(ctx, body, camera, canvas, bodies) {
+    let [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
+    let velocity = Math.sqrt(body.vel.x**2 + body.vel.y**2);
+    ctx.fillStyle = "white";
+    ctx.font = "11px monospace";
+    ctx.fillText(`Velocity: ${velocity.toFixed(2)} AU/day`, sx, sy + 10 + getVisualRadius(body, camera));
+}
 
 function drawHoverInfo(ctx, body, camera, canvas) {
     // TODO: Implement an info box
@@ -123,25 +131,76 @@ function drawHoverInfo(ctx, body, camera, canvas) {
     ctx.closePath();
 }
 
+function drawEstimatedOrbit(ctx, body, camera, canvas) {
+    if (body.primary ===  null) return;
+
+    let relVelocity = new Vector(body.vel.x - body.primary.vel.x, body.vel.y - body.primary.vel.y);
+    let relPosition = new Vector(body.pos.x - body.primary.pos.x, body.pos.y - body.primary.pos.y);
+
+    let p = semiLatusRectum(body, relVelocity, relPosition);
+    let ev = eccentricityVector(body, relVelocity, relPosition);
+    let e = ev.magnitude();
+    let omega = Math.atan2(ev.y, ev.x);
+
+    function r(theta) {
+        return p / (1 + e * Math.cos(theta));
+    }
+    const [sx, sy] = camera.worldToScreen(body.primary.pos.x, body.primary.pos.y, canvas);
+    if (e < 1) {
+        ctx.beginPath();
+        for (let theta = 0; theta < 2 * Math.PI + 0.01; theta += 0.01) {
+            const radius = r(theta);
+            const x = radius * Math.cos(theta);
+            const y = radius * Math.sin(theta);
+            const xr = x * Math.cos(omega) - y * Math.sin(omega);
+            const yr = x * Math.sin(omega) + y * Math.cos(omega);
+            const [px, py] = camera.worldToScreen(body.primary.pos.x + xr, body.primary.pos.y + yr, canvas);
+            if (theta === 0) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+    } else if (e >= 1) {
+        ctx.beginPath();
+        let thetaMax = Math.acos(-1 / e);
+        thetaMax = thetaMax * 0.95;
+        for (let theta = -thetaMax; theta < thetaMax; theta += 0.01) {
+            const radius = r(theta);
+            const x = radius * Math.cos(theta);
+            const y = radius * Math.sin(theta);
+            const xr = x * Math.cos(omega) - y * Math.sin(omega);
+            const yr = x * Math.sin(omega) + y * Math.cos(omega);
+            const [px, py] = camera.worldToScreen(body.primary.pos.x + xr, body.primary.pos.y + yr, canvas);
+            if (theta === -thetaMax) {
+                ctx.moveTo(px, py);
+            } else {
+                ctx.lineTo(px, py);
+            }
+        }
+    }
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
 function drawGrid(ctx, canvas, camera) {
     const GRID_INTERVAL = 1; // 1 AU
 
     const W = canvas.width;
     const H = canvas.height;
 
-    // World-space bounds visible on screen
     const left   = -camera.x / camera.scale;
     const top    = -camera.y / camera.scale;
     const right  =  left + W / camera.scale;
     const bottom =  top  + H / camera.scale;
 
     ctx.save();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
     ctx.lineWidth = 1;
 
-    // Vertical lines — x is in world space, convert to screen for drawing
     for (let x = 0; x <= right; x += GRID_INTERVAL) {
-        const sx = camera.worldToScreen(x, 0, canvas)[0]; // world → screen
+        const sx = camera.worldToScreen(x, 0, canvas)[0];
         ctx.beginPath();
         ctx.moveTo(sx, 0);
         ctx.lineTo(sx, H);
@@ -156,7 +215,6 @@ function drawGrid(ctx, canvas, camera) {
         ctx.stroke();
     }
 
-    // Horizontal lines
     for (let y = 0; y <= bottom; y += GRID_INTERVAL) {
         const sy = camera.worldToScreen(0, y, canvas)[1];
         ctx.beginPath();
@@ -183,11 +241,20 @@ function drawGrid(ctx, canvas, camera) {
     ctx.moveTo(camera.worldToScreen(0.05, 0, canvas)[0], camera.worldToScreen(0, -0.05, canvas)[1]);
     ctx.lineTo(camera.worldToScreen(0 + GRID_INTERVAL - 0.05, 0, canvas)[0], camera.worldToScreen(0, -0.05, canvas)[1]);
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-    ctx.font = "11px monospace";
-    ctx.fillText("1 AU", camera.worldToScreen(0 + GRID_INTERVAL / 2, 0, canvas)[0] - 15, camera.worldToScreen(0, -0.05, canvas)[1] + 15);
+    ctx.font = `${11 * camera.scale / 100}px monospace`;
+    ctx.fillText("1 AU", camera.worldToScreen(0 + GRID_INTERVAL / 2, 0, canvas)[0] - 15 * camera.scale / 100, camera.worldToScreen(0, -0.05, canvas)[1] + 15 * camera.scale / 100);
     ctx.stroke();
 
     ctx.restore();
 }
 
-export { drawBody, drawSOI, drawVelocityArrow, drawSemiMajorAxisDisplay, drawHoverInfo, drawGrid };
+export { 
+    drawBody, 
+    drawSOI, 
+    drawVelocityArrow, 
+    drawSemiMajorAxisDisplay, 
+    drawVelocityDisplay, 
+    drawHoverInfo, 
+    drawGrid,
+    drawEstimatedOrbit
+};

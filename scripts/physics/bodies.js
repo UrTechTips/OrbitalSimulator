@@ -1,4 +1,5 @@
 import { SIM_UNITS } from "../constants.js";
+import { Vector } from "./vector.js";
 class Body {
     constructor(name, mass, radius, position, velocity, acceleration, type, color, primary = null) {
         this.id = Math.random().toString(36).substr(2, 9);
@@ -6,8 +7,8 @@ class Body {
         this.name = name;
         this.mass = mass;
         this.radius = radius;
-        this.pos = position;
-        this.prevPos = { ...position };
+        this.pos = position; // pos is an vector object with x and y properties
+        this.prevPos = new Vector(position.x, position.y);
         this.vel = velocity;
         this.acc = acceleration;
         this.color = color;
@@ -16,6 +17,8 @@ class Body {
 
         if (primary) {
             this.mu = SIM_UNITS.G * primary.mass;
+            this.rel_vel = new Vector(this.vel.x - primary.vel.x, this.vel.y - primary.vel.y);
+            this.rel_pos = new Vector(this.pos.x - primary.pos.x, this.pos.y - primary.pos.y);
         }
 
         this.trail = [];
@@ -25,14 +28,14 @@ class Body {
         if (this.type !== "planet" || !this.primary) return;
         const r_p = semiMajorAxis * (1 - eccentricity);
         const v_p = Math.sqrt((SIM_UNITS.G * this.primary.mass * (1 + eccentricity)) / (semiMajorAxis * (1 - eccentricity)));
-        this.pos = { x: r_p, y: 0 };
-        this.vel = { x: 0, y: v_p };
+        this.pos = new Vector(r_p, 0);
+        this.vel = new Vector(0, v_p);
 
         return this;
     }
 
     computeAccelration(bodies, pos) {
-        let acc = {x: 0, y: 0};
+        let acc = new Vector(0, 0);
 
         for (let other of bodies) {
             if (other === this) continue;

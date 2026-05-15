@@ -1,12 +1,15 @@
 //main.js
 import Body from "./physics/bodies.js";
 import Camera from "./renderer/camera.js";
-import { update, updateRK4 } from "./physics/rk4.js";
+// import { update, updateRK4 } from "./physics/rk4.js";
+// import { updateRK4 } from "./physics/rk4.js";
+import { updateRK4All } from "./physics/rk4All.js"
 import cameraEventListeners from "./renderer/camera_canvas.js";
 import { updateBodiesList } from "./ui/bodiesList.js";
 import { SIM_UNITS, MAX_TRAIL_LENGTH } from "./constants.js";
-import { drawBody, drawSemiMajorAxisDisplay, drawVelocityArrow, drawHoverInfo, drawSOI, drawGrid } from "./renderer/draw.js";
+import { drawBody, drawVelocityDisplay, drawVelocityArrow, drawHoverInfo, drawSOI, drawGrid, drawEstimatedOrbit } from "./renderer/draw.js";
 import { setSelectedBodyInfo } from "./ui/utils.js";
+import { Vector } from "./physics/vector.js";
 
 const camera = new Camera(0, 0);
 const canvas = document.getElementById("canvas");
@@ -33,16 +36,16 @@ const addBodyButton = document.getElementById("add-body-btn");
 
 let years = 0;
 
-const s = new Body("Sun", 1, 0.00465046726, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "star", "yellow");
-const b = new Body("Earth", 3.00274e-6, 4.26349651e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "blue", s).initPlanet(1, 0.0167);
-const m = new Body("Mercury", 1.66012e-7, 1.659e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "gray", s).initPlanet(0.387, 0.2056);
-const v = new Body("Venus", 2.4478383e-6, 1.079e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "orange", s).initPlanet(0.723, 0.0067);
-const mar = new Body("Mars", 3.213e-7, 2.263e-5, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "red", s).initPlanet(1.524, 0.0934);
-const j = new Body("Jupiter", 0.000954588, 0.0004778945, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "brown", s).initPlanet(5.29, 0.0489);
-const sat = new Body("Saturn", 0.00028572, 0.000402, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "goldenrod", s).initPlanet(9.537, 0.0541); 
-const u = new Body("Uranus", 0.00004365, 0.000084, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "lightblue", s).initPlanet(19.2184, 0.0463);
-const nep = new Body("Neptune", 0.00005149, 0.000079, {x: 0, y: 0}, {x: 0, y: 0}, {x: 0, y: 0}, "planet", "blue", s).initPlanet(30.11, 0.0097);
+const s = new Body("Sun", 1, 0.00465046726, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "star", "yellow");
+const b = new Body("Earth", 3.00274e-6, 4.26349651e-5, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "blue", s).initPlanet(1, 0.0167);
+const m = new Body("Mercury", 1.66012e-7, 1.659e-5, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "gray", s).initPlanet(0.387, 0.2056);
+const v = new Body("Venus", 2.4478383e-6, 1.079e-5, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "orange", s).initPlanet(0.723, 0.0067);
+const mar = new Body("Mars", 3.213e-7, 2.263e-5, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "red", s).initPlanet(1.524, 0.0934);
+const j = new Body("Jupiter", 0.000954588, 0.000477, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "brown", s).initPlanet(5.2044, 0.0489);
 
+const sat = new Body("Saturn", 0.00028572, 0.000402, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "goldenrod", s).initPlanet(9.537, 0.0541); 
+const u = new Body("Uranus", 0.00004365, 0.000084, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "lightblue", s).initPlanet(19.2184, 0.0463);
+const nep = new Body("Neptune", 0.00005149, 0.000079, new Vector(0, 0), new Vector(0, 0), new Vector(0, 0), "planet", "blue", s).initPlanet(30.11, 0.0097);
 let bodies = [s, b, m, v, mar, j, sat, u, nep];
 updateBodiesList(bodies);
 
@@ -98,7 +101,7 @@ canvas.addEventListener("mousedown", (event) => {
     const [mouseX, mouseY] = getCanvasMousePos(event, canvas);
     const [worldX, worldY] = camera.screenToWorld(mouseX, mouseY, canvas);
     newBody = new Body("New Body", 1e-6, 1e-5,
-        {x: worldX, y: worldY}, {x:0, y:0}, {x:0, y:0}, "asteroid", "white", s);
+        new Vector(worldX, worldY), new Vector(0, 0), new Vector(0, 0), "asteroid", "white", s);
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -226,7 +229,7 @@ function selectBodyAtPosition(bodies, x, y) {
     }
     return null;
 }
-
+let sysEnergyArr = new Array();
 function simulate() { 
     if (!paused) {
         requestAnimationFrame(simulate);
@@ -238,34 +241,39 @@ function simulate() {
     years += dt;
     yearDisplay.textContent = `Time: ${years.toFixed(2)}yrs`;
     
-    let changes = [];
     let removals = [];
 
     const systemEnergy = calculateSystemEnergy(bodies);
+    sysEnergyArr.push(systemEnergy);
     systemEnergyDisplay.textContent = `System Energy: ${systemEnergy.toFixed(2)}`;
 
     if (newBody) {
         drawBody(ctx, newBody, camera, canvas);
-        drawSemiMajorAxisDisplay(ctx, newBody, camera, canvas, bodies);
+        drawVelocityDisplay(ctx, newBody, camera, canvas, bodies);
+        drawEstimatedOrbit(ctx, newBody, camera, canvas);
         drawVelocityArrow(ctx, newBody, camera, canvas);
     }
 
-    for (let body of bodies) {
-        if (body.type === "star") continue; 
-        body.prevPos = { ...body.pos };
-        // update(body, bodies, dt);
-        let [pos, vel] = updateRK4(body, bodies, dt);
-        // let [pos, vel] = body.updateRK4(bodies, dt);
-        changes.push({body, pos, vel});
-    }
+    // for (let body of bodies) {
+    //     // if (body.type === "star") continue; 
+    //     body.prevPos = { ...body.pos };
+    //     // update(body, bodies, dt);
+    //     let [pos, vel] = updateRK4(body, bodies, dt);
+    //     // let [pos, vel] = body.updateRK4(bodies, dt);
+    //     changes.push({body, pos, vel});
+    // }
+
+    let changes = updateRK4All(bodies, dt);
 
     for (let change of changes) {
-        change.body.pos = change.pos;
-        change.body.vel = change.vel;
-        
-        change.body.trail.push({x: change.body.pos.x, y: change.body.pos.y});
-        if (change.body.trail.length > MAX_TRAIL_LENGTH) {
-            change.body.trail.shift();
+        let body = bodies.find(b => b.id === change.id);
+        body.prevPos = { ...body.pos };
+        body.pos = new Vector(change.newX, change.newY);
+        body.vel = new Vector(change.newVx, change.newVy);
+
+        body.trail.push({x: body.pos.x, y: body.pos.y});
+        if (body.trail.length > MAX_TRAIL_LENGTH) {
+            body.trail.shift();
         }
     }
 
@@ -291,6 +299,24 @@ function simulate() {
     if (hoveredBody) {
         drawHoverInfo(ctx, hoveredBody, camera, canvas);
     }
+
+    // if (years > 2) {
+    //     if (bodies.find(b => b.name === "Sun2") == null) {
+    //         const sun2 = new Body("Sun2", 1, 0.00465046726, new Vector(6, 0), new Vector(0, 0), new Vector(0, 0), "star", "yellow");
+    //         bodies.push(sun2);
+    //         updateBodiesList(bodies);
+    //     }
+    // }
 }
 
 simulate();
+
+// resetButton.addEventListener("click", () => {
+//     const blob = new Blob([JSON.stringify(sysEnergyArr)], {type: "application/json"});
+//     const url = URL.createObjectURL(blob);
+//     const a = document.createElement("a");
+//     a.href = url;
+//     a.download = "system_energy.json";
+//     a.click();
+//     URL.revokeObjectURL(url);
+// })

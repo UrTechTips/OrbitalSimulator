@@ -1,11 +1,11 @@
 // orbitalElements.js
-import { magnitude, crossProduct } from './math.js';
+import { Vector } from './vector.js';
 import { SIM_UNITS } from "../constants.js";
 
 function specificOrbitalEnergy(body, velocity, position) {
-    const v = magnitude(velocity);
+    const v = velocity.magnitude();
     const kineticEnergy = 0.5 * v ** 2;
-    const potentialEnergy = -body.mu / magnitude(position);
+    const potentialEnergy = -body.mu / position.magnitude();
     return kineticEnergy + potentialEnergy;
 }
 
@@ -14,13 +14,13 @@ function semiMajorAxis(body, specificOrbitalEnergy) {
 }
 
 function eccentricityVector(body, velocity, position) {
-    const h = crossProduct(position, velocity);
-    const r = magnitude(position);
+    const h = position.crossProduct(velocity);
+    const r = position.magnitude();
 
     const ex = (velocity.y * h) / body.mu - position.x / r;
     const ey = (-velocity.x * h) / body.mu - position.y / r;
 
-    return { x: ex, y: ey };
+    return new Vector(ex, ey);
 }
 
 function apoapsis(semiMajorAxis, eccentricity) {
@@ -54,6 +54,11 @@ function semiMajorAxisFromState(pos, vel, primaryMass) {
     return 1 / inverseA;
 }
 
+function semiLatusRectum(body, velocity, position) {
+    const h = position.crossProduct(velocity);
+    return (h ** 2) / body.mu;
+}
+
 export {
     specificOrbitalEnergy,
     semiMajorAxis,
@@ -62,5 +67,6 @@ export {
     periapsis,
     orbitalPeriod,
     orbitClassification,
-    semiMajorAxisFromState
+    semiMajorAxisFromState, 
+    semiLatusRectum
 }

@@ -1,6 +1,5 @@
 import { SIM_UNITS } from "../constants.js";
 import { semiMajorAxis, apoapsis, periapsis, eccentricityVector, orbitalPeriod, specificOrbitalEnergy, orbitClassification } from "../physics/orbitalElements.js";
-import { magnitude } from "../physics/math.js";
 
 function setSelectedBodyInfo(body) {
     const selectedInfo = document.getElementById("selected-body-info");
@@ -21,11 +20,11 @@ function setSelectedBodyInfo(body) {
         </div>
         <div class="property">
             <h4>Apoapsis: </h4>
-            <p>${apoapsis(a, magnitude(e)).toFixed(2)} ${SIM_UNITS.distance}</p>
+            <p>${apoapsis(a, e.magnitude()).toFixed(2)} ${SIM_UNITS.distance}</p>
         </div>
         <div class="property">
             <h4>Periapsis: </h4>
-            <p>${periapsis(a, magnitude(e)).toFixed(2)} ${SIM_UNITS.distance}</p>
+            <p>${periapsis(a, e.magnitude()).toFixed(2)} ${SIM_UNITS.distance}</p>
         </div>
         <div class="property">
             <h4>Orbital Period: </h4>
@@ -33,7 +32,7 @@ function setSelectedBodyInfo(body) {
         </div>
         <div class="property">
             <h4>Eccentricity: </h4>
-            <p>${magnitude(e).toFixed(6)}</p>
+            <p>${e.magnitude().toFixed(6)}</p>
         </div>
         <div class="property">
             <h4>Classification: </h4>

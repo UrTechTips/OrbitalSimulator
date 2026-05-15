@@ -84,7 +84,7 @@ function updateRK4(body, bodies, dt) {
     ]
 }
 
-function update(body, bodies, dt) {
+function updateEuclidean(body, bodies, dt) {
     body.acc = {x: 0, y: 0};
     for (let other of bodies) {
         if (other === body) continue;
@@ -111,4 +111,4 @@ function update(body, bodies, dt) {
     }
 }
 
-export { update, updateRK4 };
+export { updateEuclidean, updateRK4 };
