@@ -5,7 +5,7 @@ import { updateRK4All } from '../physics/rk4All.js';
 
 let orbitWorker;
 try {
-    orbitWorker = new Worker('/workers/orbitWorker.js', { type: 'module' });
+    orbitWorker = new Worker('workers/orbitWorker.js', { type: 'module' });
 }catch (err) {
     console.error("Failed to load worker:", err);
 }
