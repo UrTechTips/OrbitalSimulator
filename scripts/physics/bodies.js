@@ -1,5 +1,6 @@
 import { SIM_UNITS } from "../constants.js";
 import { Vector } from "./vector.js";
+import { soi } from "./orbitalElements.js";
 class Body {
     constructor(name, mass, radius, position, velocity, acceleration, type, color, primary = null) {
         this.id = Math.random().toString(36).substr(2, 9);
@@ -32,79 +33,6 @@ class Body {
         this.vel = new Vector(0, v_p);
 
         return this;
-    }
-
-    computeAccelration(bodies, pos) {
-        let acc = new Vector(0, 0);
-
-        for (let other of bodies) {
-            if (other === this) continue;
-
-            const dx = other.pos.x - pos.x;
-            const dy = other.pos.y - pos.y;
-            const distSq = Math.max(dx * dx + dy * dy, 1e-6);
-            const dist = Math.sqrt(distSq);
-
-            const a = (SIM_UNITS.G * other.mass) / distSq; // G * m / r^2 = acceleration
-            acc.x += (a * dx) / dist;
-            acc.y += (a * dy) / dist;
-        }
-        return acc;
-    }
-
-    updateRK4(bodies, dt) {
-        const x = this.pos.x;
-        const y = this.pos.y;
-    
-        const vx = this.vel.x;
-        const vy = this.vel.y;
-    
-        // k1
-        const a1 = this.computeAccelration(bodies, {x, y});
-    
-        const k1vx = a1.x * dt;
-        const k1vy = a1.y * dt;
-    
-        const k1x = vx * dt;
-        const k1y = vy * dt;
-    
-        // k2
-        const a2 = this.computeAccelration(bodies, {x: x + k1x / 2, y: y + k1y / 2});
-    
-        const k2vx = a2.x * dt;
-        const k2vy = a2.y * dt;
-    
-        const k2x = (vx + k1vx / 2) * dt;
-        const k2y = (vy + k1vy / 2) * dt;
-    
-        // k3
-        const a3 = this.computeAccelration(bodies, {x: x + k2x / 2, y: y + k2y / 2});
-    
-        const k3vx = a3.x * dt;
-        const k3vy = a3.y * dt;
-    
-        const k3x = (vx + k2vx / 2) * dt;
-        const k3y = (vy + k2vy / 2) * dt;
-    
-        // k4
-        const a4 = this.computeAccelration(bodies, {x: x + k3x, y: y + k3y});
-    
-        const k4vx = a4.x * dt;
-        const k4vy = a4.y * dt;
-    
-        const k4x = (vx + k3vx) * dt;
-        const k4y = (vy + k3vy) * dt;
-
-        return [
-            {
-                x: this.pos.x + (k1x + 2 * k2x + 2 * k3x + k4x) / 6,
-                y: this.pos.y + (k1y + 2 * k2y + 2 * k3y + k4y) / 6
-            },
-            {
-                x: this.vel.x + (k1vx + 2 * k2vx + 2 * k3vx + k4vx) / 6,
-                y: this.vel.y + (k1vy + 2 * k2vy + 2 * k3vy + k4vy) / 6
-            }
-        ]
     }
 
     colided(bodies) {
@@ -153,4 +81,101 @@ class Body {
     }
 }
 
+class CelestialBody extends Body {
+    constructor(name, mass, radius, position, velocity, acceleration, type, color, primary = null) {
+        super(name, mass, radius, position, velocity, acceleration, type, color, primary);
+    }
+}
+
+class Spacecraft extends Body {
+    constructor(name, mass, radius, position, velocity, acceleration, color, primary = null, fuel = 0) {
+        super(name, mass, radius, position, velocity, acceleration, "spacecraft", color, primary);
+        this.fuel = fuel;
+
+        this.maxThrust = 0;
+        this.isp = 300;
+
+        this.rotation = 0;
+        this.angularVelocity = 0;
+
+        this.orbit = {
+            semiMajorAxis: null,
+            eccentricity: null,
+            inclination: null,
+            periapsis: null,
+            apoapsis: null,
+            period: null,
+            trueAnomaly: null,
+            orbitType: null,
+        }
+
+        this.target = null;
+        this.missionPhase = "idle";
+        this.deltaVRemaining = 0;
+        this.manuverQueue = [];
+
+        this.predictedOrbitPoints = [];
+        this.predictedEncounters = [];        
+    }
+
+    setPrimaryBody(bodies) {
+        let influencer = null;
+        for (let body of bodies) {
+            if (body === this) continue;
+            if (body.type === "star") continue;
+            const dx = body.pos.x - this.pos.x;
+            const dy = body.pos.y - this.pos.y;
+            const distSq = dx * dx + dy * dy;
+            let soiRadius = soi(body, body.primary);
+            if (distSq < soiRadius) {
+                influencer = body;
+            }
+        }
+        if (influencer) {
+            super.primary = influencer;
+            super.mu = SIM_UNITS.G * influencer.mass;
+        } else {
+            super.primary = null;
+            super.mu = 0;
+        }
+    }
+
+    calculateThrust() {
+        return new Vector(0, 0);
+    }
+
+    consumeFuel(deltaV, exhauseVelocity) {
+        // From Tsiolkovsky rocket equation: deltaV = exhaustVelocity * ln(m0 / mf)
+        const m0 = this.fuel + this.mass;
+        const exp = Math.exp(-deltaV / exhauseVelocity);
+        const mf = m0 * exp;
+        this.fuel = mf - this.mass; // Mass = dry mass + fuel so fuel = mf - dry mass
+    }
+
+    instantBurn(dv, theta) {
+        const burnVector = new Vector(dv * Math.cos(theta), dv * Math.sin(theta));
+        this.vel.x += burnVector.x;
+        this.vel.y += burnVector.y;
+        this.consumeFuel(dv, this.isp * SIM_UNITS.g0);
+    }
+
+    progradeBurn(dv) {
+        const burnVector = this.vel.normalize().scale(dv);
+        this.vel.x += burnVector.x;
+        this.vel.y += burnVector.y;
+        this.consumeFuel(dv, this.isp * SIM_UNITS.g0);
+        if (this.fuel <= 0) {
+            alert("Fuel completed")
+        }
+    }
+
+    retrogradeBurn(dv) {
+        const burnVector = this.vel.normalize().scale(-dv);
+        this.vel.x += burnVector.x;
+        this.vel.y += burnVector.y;
+        this.consumeFuel(dv, this.isp * SIM_UNITS.g0);
+    }
+}
+
 export default Body;
+export { CelestialBody, Spacecraft };

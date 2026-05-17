@@ -3,6 +3,9 @@ import { Vector } from './vector.js';
 import { SIM_UNITS } from "../constants.js";
 
 function specificOrbitalEnergy(body, velocity, position) {
+    if (body.mu === undefined) {
+        throw new Error("Body must have mu property defined");
+    }
     const v = velocity.magnitude();
     const kineticEnergy = 0.5 * v ** 2;
     const potentialEnergy = -body.mu / position.magnitude();
@@ -10,10 +13,16 @@ function specificOrbitalEnergy(body, velocity, position) {
 }
 
 function semiMajorAxis(body, specificOrbitalEnergy) {
-  return -body.mu / (2 * specificOrbitalEnergy);
+    if (body.mu === undefined) {
+        throw new Error("Body must have mu property defined");
+    }
+    return -body.mu / (2 * specificOrbitalEnergy);
 }
 
 function eccentricityVector(body, velocity, position) {
+    if (body.mu === undefined) {
+        throw new Error("Body must have mu property defined");
+    }
     const h = position.crossProduct(velocity);
     const r = position.magnitude();
 
@@ -56,7 +65,15 @@ function semiMajorAxisFromState(pos, vel, primaryMass) {
 
 function semiLatusRectum(body, velocity, position) {
     const h = position.crossProduct(velocity);
+    if (body.mu === undefined) {
+        throw new Error("Body must have mu property defined");
+    }
     return (h ** 2) / body.mu;
+}
+
+function soi(body, primary) {
+    let semiMajorAxis = semiMajorAxisFromState(body.pos, body.vel, primary.mass);
+    return semiMajorAxis * Math.pow(body.mass / primary.mass, 2/5);
 }
 
 export {
@@ -68,5 +85,6 @@ export {
     orbitalPeriod,
     orbitClassification,
     semiMajorAxisFromState, 
-    semiLatusRectum
+    semiLatusRectum,
+    soi
 }

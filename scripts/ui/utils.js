@@ -8,7 +8,7 @@ function setSelectedBodyInfo(body) {
     let e = eccentricityVector(body, body.vel, body.pos);
     let period = orbitalPeriod(body, a);
     let classification = orbitClassification(energy);
-    selectedInfo.innerHTML = `
+    let html = `
         <strong>${body.name}</strong><br>
         <div class="property">
             <h4>Energy: </h4>
@@ -42,6 +42,16 @@ function setSelectedBodyInfo(body) {
             <h4>Type: </h4>
             <p>${body.type}</p>
         </div>`;
+
+
+    if (body.type === "spacecraft") {
+        html += `
+        <div class="property">
+            <h4>Fuel: </h4>
+            <p>${body.fuel.toFixed(2)} Kg</p>
+        </div>`;
+    }
+    selectedInfo.innerHTML = html;
 }
 
 export { setSelectedBodyInfo };

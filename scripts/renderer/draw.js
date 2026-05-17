@@ -1,18 +1,27 @@
-import { semiMajorAxisFromState, semiLatusRectum, eccentricityVector } from "../physics/orbitalElements.js"
+import { semiMajorAxisFromState, semiLatusRectum, eccentricityVector, soi } from "../physics/orbitalElements.js"
 import { Vector } from "../physics/vector.js";
+import { getVisualRadius } from "./utils.js";
+import { updateRK4All } from '../physics/rk4All.js';
 
-function getVisualRadius(body, camera) {
-  const realPixels = body.radius * camera.scale;
-
-  const minimums = {
-    star:   15,
-    planet: 7,
-    moon:   5,
-    asteroid:  5,
-  };
-
-  return Math.max(realPixels, minimums[body.type]);
+let orbitWorker;
+try {
+    orbitWorker = new Worker('/workers/orbitWorker.js', { type: 'module' });
+}catch (err) {
+    console.error("Failed to load worker:", err);
 }
+let cachedOrbitPaths = [];
+let workerBusy = false;
+
+orbitWorker.onmessage = function(e) {
+    cachedOrbitPaths = e.data.bodiesPositions;
+    workerBusy = false;
+};
+orbitWorker.onerror = function(err) {
+    console.error("Worker failed to load or threw:", err);
+    console.error("Message:", err.message);
+    console.error("Filename:", err.filename);
+    console.error("Line:", err.lineno);
+};
 
 function drawBody(ctx, body, camera, canvas) {
     const [sx, sy] = camera.worldToScreen(body.pos.x, body.pos.y, canvas);
@@ -35,7 +44,7 @@ function drawBody(ctx, body, camera, canvas) {
 
     ctx.shadowBlur = 0;
 
-    if (body.type != "asteroid" && body.type != "planet") return;
+    // if (body.type != "asteroid" && body.type != "planet") return;
     ctx.beginPath();
     ctx.strokeStyle = body.color;
     ctx.lineWidth = 2;
@@ -53,9 +62,6 @@ function drawBody(ctx, body, camera, canvas) {
     ctx.closePath();
 };
 
-function soi(body, primary) {
-    return body.semiMajorAxis * Math.pow(body.mass / primary.mass, 2/5);
-}
 
 function drawSOI(ctx, body, primary, camera, canvas) {
     const realSOI_AU  = soi(body, primary);
@@ -115,7 +121,7 @@ function drawVelocityDisplay(ctx, body, camera, canvas, bodies) {
     let velocity = Math.sqrt(body.vel.x**2 + body.vel.y**2);
     ctx.fillStyle = "white";
     ctx.font = "11px monospace";
-    ctx.fillText(`Velocity: ${velocity.toFixed(2)} AU/day`, sx, sy + 10 + getVisualRadius(body, camera));
+    ctx.fillText(`Velocity: ${velocity.toFixed(2)} AU/yr`, sx, sy + 10 + getVisualRadius(body, camera));
 }
 
 function drawHoverInfo(ctx, body, camera, canvas) {
@@ -248,6 +254,50 @@ function drawGrid(ctx, canvas, camera) {
     ctx.restore();
 }
 
+function drawPredictedOrbits(spaceCrafts, bodies, dt, ctx, canvas, camera) {
+    // --- Kick off a new prediction if worker is free ---
+    if (!workerBusy) {
+        workerBusy = true;
+
+        // Deep clone bodies state to send to worker (structured clone handles this)
+        const bodiesSnapshot = bodies.map(b => ({
+            id: b.id,
+            mass: b.mass,
+            pos: { x: b.pos.x, y: b.pos.y },
+            vel: { x: b.vel.x, y: b.vel.y }
+        }));
+
+        const spaceCraftIds = spaceCrafts.map(c => c.id);
+
+        orbitWorker.postMessage({
+            bodies: bodiesSnapshot,
+            dt: dt,
+            numSteps: 1000,
+            spaceCraftIds: spaceCraftIds
+        });
+    }
+
+    // --- Always draw whatever we have cached (1 frame stale max) ---
+    if (cachedOrbitPaths.length === 0) return;
+
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+
+    for (let path of cachedOrbitPaths) {
+        if (path.length === 0) continue;
+
+        ctx.beginPath();
+        let [startVx, startVy] = camera.worldToScreen(path[0].x, path[0].y, canvas);
+        ctx.moveTo(startVx, startVy);
+
+        for (let i = 1; i < path.length; i++) {
+            let [sx, sy] = camera.worldToScreen(path[i].x, path[i].y, canvas);
+            ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+    }
+}
+
 export { 
     drawBody, 
     drawSOI, 
@@ -256,5 +306,6 @@ export {
     drawVelocityDisplay, 
     drawHoverInfo, 
     drawGrid,
-    drawEstimatedOrbit
+    drawEstimatedOrbit, 
+    drawPredictedOrbits
 };
