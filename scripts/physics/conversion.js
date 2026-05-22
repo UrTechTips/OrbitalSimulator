@@ -15,3 +15,5 @@ function mToAU(m) {
 function AUToM(au) {
     return au * SIM_UNITS.AU;
 }
+
+export { kgToSolarMass, SolarMassToKg, mToAU, AUToM };

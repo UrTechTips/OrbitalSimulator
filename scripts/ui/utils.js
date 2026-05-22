@@ -1,5 +1,6 @@
 import { SIM_UNITS } from "../constants.js";
 import { semiMajorAxis, apoapsis, periapsis, eccentricityVector, orbitalPeriod, specificOrbitalEnergy, orbitClassification } from "../physics/orbitalElements.js";
+import { SolarMassToKg } from "../physics/conversion.js";
 
 function setSelectedBodyInfo(body) {
     const selectedInfo = document.getElementById("selected-body-info");
@@ -48,8 +49,12 @@ function setSelectedBodyInfo(body) {
         html += `
         <div class="property">
             <h4>Fuel: </h4>
-            <p>${body.fuel.toFixed(2)} Kg</p>
-        </div>`;
+            <p>${SolarMassToKg(body.fuelMass).toFixed(2)} Kg</p>
+        </div>
+        <button class="button" id="prograde-burn" data-id="${body.id}">Prograde Burn</button>
+        <button class="button" id="retrograde-burn" data-id="${body.id}">Retrograde Burn</button>
+        <button class="button" id="circularize" data-id="${body.id}">Circularize</button>
+        `;
     }
     selectedInfo.innerHTML = html;
 }

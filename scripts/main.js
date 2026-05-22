@@ -9,6 +9,7 @@ import { drawBody, drawVelocityDisplay, drawVelocityArrow, drawHoverInfo, drawSO
 import { setSelectedBodyInfo } from "./ui/utils.js";
 import { Vector } from "./physics/vector.js";
 import { getVisualRadius } from "./renderer/utils.js";
+import { kgToSolarMass } from "./physics/conversion.js";
 
 const camera = new Camera(0, 0);
 const canvas = document.getElementById("canvas");
@@ -100,8 +101,8 @@ canvas.addEventListener("mousedown", (event) => {
     isDragging = true;
     const [mouseX, mouseY] = getCanvasMousePos(event, canvas);
     const [worldX, worldY] = camera.screenToWorld(mouseX, mouseY, canvas);
-    newBody = new Spacecraft(`P-${bodyCounter++}`, 1e-6, 1e-5,
-        new Vector(worldX, worldY), new Vector(0, 0), new Vector(0, 0), "white", s, 100);
+    newBody = new Spacecraft(`P-${bodyCounter++}`, kgToSolarMass(1000), 1e-5,
+        new Vector(worldX, worldY), new Vector(0, 0), new Vector(0, 0), "white", s, kgToSolarMass(400));
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -218,7 +219,6 @@ function selectBodyAtPosition(bodies, x, y) {
     }
     return null;
 }
-let lastBurnYear = -1;
 let sysEnergyArr = new Array();
 function simulate() { 
     if (!paused) {
@@ -230,11 +230,40 @@ function simulate() {
 
     years += dt;
     yearDisplay.textContent = `Time: ${years.toFixed(2)}yrs`;
+
+    const progradeButton = document.getElementById("prograde-burn");
+    const retrogradeButton = document.getElementById("retrograde-burn");
+    const circularizeButton = document.getElementById("circularize");
+
+    progradeButton && (progradeButton.onclick = () => {
+        const id = progradeButton.dataset.id;
+        const body = bodies.find(b => b.id === id);
+        if (body) {
+            body.progradeBurn(2);
+        }
+        setSelectedBodyInfo(selectedBody);
+    });
+    retrogradeButton && (retrogradeButton.onclick = () => {
+        const id = retrogradeButton.dataset.id;
+        const body = bodies.find(b => b.id === id);
+        if (body) {
+            body.scheduleCircularize();
+        }
+        setSelectedBodyInfo(selectedBody);
+    });
+    circularizeButton && (circularizeButton.onclick = () => {
+        const id = circularizeButton.dataset.id;
+        const body = bodies.find(b => b.id === id);
+        if (body) {
+            body.circularize();
+        }
+        setSelectedBodyInfo(selectedBody);
+    });
     
     let removals = [];
 
     const systemEnergy = calculateSystemEnergy(bodies);
-    sysEnergyArr.push(systemEnergy);
+    // sysEnergyArr.push(systemEnergy);
     systemEnergyDisplay.textContent = `System Energy: ${systemEnergy.toFixed(2)}`;
 
     if (newBody) {
@@ -246,29 +275,8 @@ function simulate() {
 
     drawPredictedOrbits(spaceCrafts, bodies, dt, ctx, canvas, camera);
 
-    // for (let body of bodies) {
-    //     // if (body.type === "star") continue; 
-    //     body.prevPos = { ...body.pos };
-    //     // update(body, bodies, dt);
-    //     let [pos, vel] = updateRK4(body, bodies, dt);
-    //     // let [pos, vel] = body.updateRK4(bodies, dt);
-    //     changes.push({body, pos, vel});
-    // }
-    const currentFloorYear = Math.floor(years);
-    if (currentFloorYear % 2 === 0 && currentFloorYear !== lastBurnYear) {
-        // This block runs EXACTLY ONCE at the start of every even year
-        lastBurnYear = currentFloorYear; 
-
-        for (let body of spaceCrafts) {
-            body.progradeBurn(2);
-        }
-    }
-    if (currentFloorYear % 2 !== 0 && currentFloorYear !== lastBurnYear) {
-        lastBurnYear = currentFloorYear;
-
-        for (let body of spaceCrafts) {
-            body.retrogradeBurn(2);
-        }
+    for (let body of spaceCrafts) {
+        body.manuver(dt, years);
     }
 
     let changes = updateRK4All(bodies, dt);
@@ -282,6 +290,13 @@ function simulate() {
         body.trail.push({x: body.pos.x, y: body.pos.y});
         if (body.trail.length > MAX_TRAIL_LENGTH) {
             body.trail.shift();
+        }
+    }
+
+    for (let body of spaceCrafts) {
+        if (body.engineOn && body.throttle > 0) {
+            const thrust = body.maxThrust * body.throttle;
+            body.consumeFuelContinuous(thrust, dt);
         }
     }
 
@@ -300,6 +315,7 @@ function simulate() {
     for (let body of bodies) {
         drawBody(ctx, body, camera, canvas);
         body.setPrimaryBody?.(bodies);
+        body.updateOrbit?.();
         if (body.type === "star") continue;
         if (body.primary != null) drawSOI(ctx, body, body.primary, camera, canvas);
     }
@@ -307,14 +323,6 @@ function simulate() {
     if (hoveredBody) {
         drawHoverInfo(ctx, hoveredBody, camera, canvas);
     }
-
-    // if (years > 2) {
-    //     if (bodies.find(b => b.name === "Sun2") == null) {
-    //         const sun2 = new Body("Sun2", 1, 0.00465046726, new Vector(6, 0), new Vector(0, 0), new Vector(0, 0), "star", "yellow");
-    //         bodies.push(sun2);
-    //         updateBodiesList(bodies);
-    //     }
-    // }
 }
 
 simulate();
