@@ -9,6 +9,7 @@ import { drawBody, drawVelocityDisplay, drawVelocityArrow, drawHoverInfo, drawSO
 import { setSelectedBodyInfo } from "./ui/utils.js";
 import { Vector } from "./physics/vector.js";
 import { getVisualRadius } from "./renderer/utils.js";
+import {scheduleCircularize, hofmannTransfer} from  "./physics/manuvers.js";
 import { kgToSolarMass } from "./physics/conversion.js";
 
 const camera = new Camera(0, 0);
@@ -231,15 +232,21 @@ function simulate() {
     years += dt;
     yearDisplay.textContent = `Time: ${years.toFixed(2)}yrs`;
 
-    const progradeButton = document.getElementById("prograde-burn");
+    const hofmannButton = document.getElementById("hofmann-transfer");
     const retrogradeButton = document.getElementById("retrograde-burn");
     const circularizeButton = document.getElementById("circularize");
+    const reloadButton = document.getElementById("reload");
 
-    progradeButton && (progradeButton.onclick = () => {
-        const id = progradeButton.dataset.id;
+    for (let body of spaceCrafts) {   
+        body.setPrimaryBody?.(bodies);
+        body.updateOrbit?.();
+    }
+    
+    hofmannButton && (hofmannButton.onclick = () => {
+        const id = hofmannButton.dataset.id;
         const body = bodies.find(b => b.id === id);
         if (body) {
-            body.progradeBurn(2);
+            hofmannTransfer(body, body.orbit.apoapsis * 1.5);
         }
         setSelectedBodyInfo(selectedBody);
     });
@@ -255,8 +262,11 @@ function simulate() {
         const id = circularizeButton.dataset.id;
         const body = bodies.find(b => b.id === id);
         if (body) {
-            body.circularize();
+            scheduleCircularize(body);
         }
+        setSelectedBodyInfo(selectedBody);
+    });
+    reloadButton && (reloadButton.onclick = () => {
         setSelectedBodyInfo(selectedBody);
     });
     
@@ -314,8 +324,6 @@ function simulate() {
     
     for (let body of bodies) {
         drawBody(ctx, body, camera, canvas);
-        body.setPrimaryBody?.(bodies);
-        body.updateOrbit?.();
         if (body.type === "star") continue;
         if (body.primary != null) drawSOI(ctx, body, body.primary, camera, canvas);
     }

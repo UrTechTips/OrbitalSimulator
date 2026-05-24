@@ -277,7 +277,8 @@ class Spacecraft extends Body {
      * @param {number}  [options.triggerTime]  - sim time (s), required if trigger = "atTime"
      */
     scheduleManeuver(burnMode, deltaV, fixedDirection = null, trigger = "now", triggerTime = null ) {
-        console.log(`${this.name}: scheduling maneuver - burnMode: ${burnMode}, deltaV: ${deltaV.toFixed(2)} m/s, trigger: ${trigger}${trigger === "atTime" ? ` at t=${triggerTime}s` : ""}`);
+        console.log(`${this.name}: scheduling maneuver - burnMode: ${burnMode}`);
+        // console.log(`${this.name}: scheduling maneuver - burnMode: ${burnMode}, deltaV: ${deltaV.toFixed(2)} m/s, trigger: ${trigger}${trigger === "atTime" ? ` at t=${triggerTime}s` : ""}`);
         this.manuverQueue.push({
             burnMode,
             deltaV,
@@ -287,25 +288,7 @@ class Spacecraft extends Body {
             deltaVDelivered: 0,   // accumulates each timestep — initialized to 0 (not undefined)
             executed: false,
         });
-    }
-    
-    scheduleCircularize() {
-        const EPSILON = 0.1;
-
-        if (!this.primary) return;
- 
-        const r = this.orbit.apoapsis;
-        const vCurrent = Math.sqrt(this.mu * (2 / r - 1 / this.orbit.semiMajorAxis));
-        const vCircular = Math.sqrt(this.mu / r);
-        const deltaV = vCircular - vCurrent;
-        console.log(`${this.name}: current velocity at apoapsis: ${vCurrent.toFixed(2)} m/s, circular velocity: ${vCircular.toFixed(2)} m/s, deltaV for circularization: ${deltaV.toFixed(2)} m/s`);
-        if (Math.abs(deltaV) < EPSILON) { return; }
-        if (deltaV < 0) {
-            this.scheduleManeuver("retrograde", Math.abs(deltaV), null, "atApoapsis");
-        } else {
-            this.scheduleManeuver("prograde", Math.abs(deltaV), null, "atApoapsis");
-        }
-        console.log(`${this.name}: Maneuver Queue: `, this.manuverQueue);
+        console.table(this.manuverQueue);
     }
 
     /**
@@ -324,7 +307,7 @@ class Spacecraft extends Body {
         
         const maneuver = this.manuverQueue[0];
         // Check cutoff
-        if (maneuver.deltaVDelivered >= maneuver.deltaV) {
+        if (maneuver.deltaVDelivered >= maneuver.deltaV && maneuver.burnMode !== "circularize") {
             this.engineOn        = false;
             this.throttle        = 0;
             this.thrustDirection = new Vector(0, 0);
@@ -335,11 +318,18 @@ class Spacecraft extends Body {
         
         if (this._triggerMet(maneuver, simTime)) {
             console.log(`${this.name}: Trigger condition met for maneuver: `, maneuver);
+            if (maneuver.burnMode === "circularize" && maneuver.deltaVDelivered <= 0) {
+                const r = this.orbit.apoapsis;
+                const vCurrent = Math.sqrt(this.mu * (2 / r - 1 / this.orbit.semiMajorAxis));
+                const vCircular = Math.sqrt(this.mu / r);
+                const deltaV = vCircular - vCurrent;
+                maneuver.deltaV = Math.abs(deltaV);
+                if (deltaV < 0) { maneuver.burnMode = "retrograde"; }
+                else { maneuver.burnMode = "prograde"; }
+            }
             // Resolve burn direction from current orbital state
             const dir = this._resolveDirection(maneuver);
-            console.log(`${this.name}: Resolved burn direction: ${dir.toString()}`);
- 
-            // Resolve throttle — tapers near cutoff to avoid overshoot
+
             const throttle = this._resolveThrottle(maneuver, dt);
             console.log(`${this.name}: Resolved throttle: ${(throttle * 100).toFixed(1)}%`);
  
@@ -363,6 +353,7 @@ class Spacecraft extends Body {
      * @private
      */
     _triggerMet(maneuver, simTime) {
+        // console.log(`${this.name}: Checking trigger for maneuver: `, maneuver);
         switch (maneuver.trigger) {
             case "now":
                 return true;
@@ -403,7 +394,7 @@ class Spacecraft extends Body {
             case "fixed":
                 // Pre-computed direction stored at scheduling time (e.g. circularize)
                 return maneuver.fixedDirection.normalize();
- 
+
             default:
                 console.warn(`Unknown burnMode: ${maneuver.burnMode}`);
                 return new Vector(0, 0);

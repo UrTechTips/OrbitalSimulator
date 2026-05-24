@@ -51,9 +51,10 @@ function setSelectedBodyInfo(body) {
             <h4>Fuel: </h4>
             <p>${SolarMassToKg(body.fuelMass).toFixed(2)} Kg</p>
         </div>
-        <button class="button" id="prograde-burn" data-id="${body.id}">Prograde Burn</button>
+        <button class="button" id="hofmann-transfer" data-id="${body.id}">Hofmann Transfer</button>
         <button class="button" id="retrograde-burn" data-id="${body.id}">Retrograde Burn</button>
         <button class="button" id="circularize" data-id="${body.id}">Circularize</button>
+        <button class="button" id="reload" data-id="${body.id}">Reload</button>
         `;
     }
     selectedInfo.innerHTML = html;
