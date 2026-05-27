@@ -83,6 +83,8 @@ let isDragging = false;
 let newBody = null;
 let selectedBody = null;
 let hoveredBody = null;
+let hofmannDrawing = false;
+let hofmannTarget = null;
 
 function getCanvasMousePos(event, canvas) {
     const rect = canvas.getBoundingClientRect();
@@ -126,6 +128,16 @@ canvas.addEventListener("mousemove", (event) => {
             newBody.vel.y = (newBody.vel.y / speed) * MAX_SPEED;
         }
     }
+
+    if (hofmannDrawing && selectedBody) {
+        const [mouseX, mouseY] = getCanvasMousePos(event, canvas);
+        const [mouseWorldX, mouseWorldY] = camera.screenToWorld(mouseX, mouseY, canvas);        
+        // hofmannTarget is radius of target orbit
+
+        const dx = mouseWorldX - selectedBody.primary.pos.x;
+        const dy = mouseWorldY - selectedBody.primary.pos.y;
+        hofmannTarget = Math.sqrt(dx*dx + dy*dy);
+    }
 });
 
 canvas.addEventListener("mouseup", (event) => {
@@ -136,6 +148,11 @@ canvas.addEventListener("mouseup", (event) => {
         spaceCrafts.push(newBody);
         newBody = null;
         updateBodiesList(bodies);
+    }
+
+    if (hofmannDrawing && selectedBody) {
+        hofmannTransfer(selectedBody, hofmannTarget);
+        hofmannDrawing = false;
     }
 });
 
@@ -246,7 +263,8 @@ function simulate() {
         const id = hofmannButton.dataset.id;
         const body = bodies.find(b => b.id === id);
         if (body) {
-            hofmannTransfer(body, body.orbit.apoapsis * 1.5);
+            hofmannDrawing = !hofmannDrawing;
+            // hofmannTransfer(body, body.orbit.apoapsis * 1.5);
         }
         setSelectedBodyInfo(selectedBody);
     });
@@ -275,6 +293,25 @@ function simulate() {
     const systemEnergy = calculateSystemEnergy(bodies);
     // sysEnergyArr.push(systemEnergy);
     systemEnergyDisplay.textContent = `System Energy: ${systemEnergy.toFixed(2)}`;
+
+    if (hofmannDrawing && selectedBody) {
+        // Draw a circle around the primary at the target radius
+        const primary = selectedBody.primary || bodies.find(b => b.type === "star");
+        const centerX = primary.pos.x;
+        const centerY = primary.pos.y;
+        const radius = hofmannTarget;
+        const screenCenter = camera.worldToScreen(centerX, centerY, canvas);
+        const screenRadius = Math.abs(camera.worldToScreen(0, radius, canvas)[1] - camera.worldToScreen(0, 0, canvas)[1]);
+        
+        console.log(`Drawing Hofmann target orbit at radius: ${screenRadius.toFixed(2)} AU`);
+        ctx.beginPath();
+        ctx.arc(screenCenter[0], screenCenter[1], screenRadius, 0, 2 * Math.PI);
+        ctx.strokeStyle = "cyan";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
 
     if (newBody) {
         drawBody(ctx, newBody, camera, canvas);
